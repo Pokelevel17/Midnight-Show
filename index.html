@@ -16,17 +16,10 @@
   .overlay {position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:20;opacity:0;transition:opacity var(--fade) ease;}
   .overlay.show {opacity:1;}
   .click-block {position:absolute;inset:0;z-index:30;pointer-events:auto;background:transparent;}
-  .ui {position:absolute;top:20px;left:20px;z-index:40;font-size:14px;opacity:0.85;display:flex;gap:10px;}
+  .ui {position:absolute;top:20px;left:20px;z-index:40;font-size:14px;opacity:0.9;display:flex;gap:10px;}
   .logo {font-weight:700;font-size:18px;text-transform:uppercase;}
   .schedule {position:absolute;left:20px;bottom:20px;z-index:40;font-size:13px;opacity:0.75;}
   .fs-btn {position:absolute;right:20px;bottom:20px;z-index:40;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;cursor:pointer;}
-  .bumper-text {font-family:"Courier New",monospace;text-align:center;text-shadow:
-      -1px -1px 0 #000,
-      1px -1px 0 #000,
-      -1px 1px 0 #000,
-      1px 1px 0 #000;}
-  .bumper-text h1 {font-size:40px;margin:0;text-transform:uppercase;color:var(--fg);}
-  .bumper-text p {margin:8px 0 0 0;font-size:14px;opacity:0.9;color:var(--fg);}
   .outlined {
       text-shadow:
         -1px -1px 0 #000,
@@ -35,6 +28,9 @@
          1px 1px 0 #000,
         0 0 4px #000;
   }
+  .bumper-text {font-family:"Courier New",monospace;text-align:center;}
+  .bumper-text h1 {font-size:40px;margin:0;text-transform:uppercase;color:var(--fg);}
+  .bumper-text p {margin:8px 0 0 0;font-size:14px;opacity:0.9;color:var(--fg);}
   .tv::after {content:"";position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,0.03)1px,transparent 1px);background-size:100% 3px;mix-blend-mode:overlay;opacity:0.05;pointer-events:none;}
 </style>
 </head>
@@ -42,15 +38,15 @@
 <div class="tv" id="tv">
   <div id="player"></div>
   <div class="overlay" id="overlay">
-    <div class="bumper-text">
+    <div class="bumper-text outlined">
       <h1 id="bumpLine">Please Stand By</h1>
       <p id="bumpSub">Midnight Channel</p>
     </div>
   </div>
   <div class="click-block" id="clickBlock"></div>
   <div class="ui outlined">
-    <div class="logo outlined">MIDNIGHT</div>
-    <div id="nowText" class="outlined">Loading...</div>
+    <div class="logo">MIDNIGHT</div>
+    <div id="nowText">Loading...</div>
   </div>
   <div class="schedule outlined" id="schedule">Next: —</div>
   <button class="fs-btn outlined" id="fsBtn">⛶</button>
@@ -66,13 +62,23 @@ const bumpers = [
 
 let playlist=[],titles={},current=0,player=null,bumperTimer=null;
 
+// Shuffle array (Fisher–Yates)
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [array[i],array[j]]=[array[j],array[i]];
+  }
+  return array;
+}
+
 async function loadVideos() {
   const res = await fetch("Videos.json");
   const data = await res.json();
-  playlist = data.videos.map(v => v.id);
+  playlist = shuffle(data.videos.map(v => v.id));
   data.videos.forEach(v => titles[v.id] = v.title || "Untitled");
 }
 
+// Load YouTube API
 (function loadYT(){
   const s=document.createElement("script");
   s.src="https://www.youtube.com/iframe_api";
@@ -140,11 +146,14 @@ function nextVideo(){
   hideOverlay();
 }
 
+// Fullscreen
 document.getElementById("fsBtn").onclick=()=>{
   const tv=document.getElementById("tv");
   if(!document.fullscreenElement) tv.requestFullscreen();
   else document.exitFullscreen();
 };
+
+// Prevent clicks on player
 document.getElementById("clickBlock").oncontextmenu=e=>e.preventDefault();
 </script>
 </body>
