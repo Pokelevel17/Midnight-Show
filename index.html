@@ -1,170 +1,151 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Midnight Channel — Minimalist TV</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Midnight Channel — Broadcast Stream</title>
 <style>
-  :root{
-    --bg:#000;
-    --fg:#fff;
-    --bump-time:6000ms;
-    --bump-fade:800ms;
-    --safe-margin:24px;
+  :root {
+    --bg:#000; --fg:#fff;
+    --fade:800ms; --bump-time:6000ms;
     font-family:"Helvetica Neue",Arial,sans-serif;
   }
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);overflow:hidden;}
-  .container{position:relative;height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;}
-  .tv{width:100%;height:100%;background:#000;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
-  #player{position:absolute;inset:0;width:100%;height:100%;border:0;}
-  .click-block{position:absolute;inset:0;z-index:30;background:transparent;pointer-events:auto;}
-  .ui{position:absolute;z-index:40;left:var(--safe-margin);top:var(--safe-margin);font-size:14px;letter-spacing:0.04em;opacity:0.9;display:flex;gap:12px;align-items:center;user-select:none;}
-  .logo{font-weight:700;font-size:18px;text-transform:uppercase;}
-  .meta{opacity:0.85;font-weight:400;}
-  .bumper{position:absolute;z-index:50;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);text-align:center;padding:30px;box-sizing:border-box;opacity:0;pointer-events:none;transition:opacity var(--bump-fade) ease;font-family:"Courier New",Courier,monospace;}
-  .bumper.show{opacity:1;pointer-events:auto;}
-  .bumper .line{font-size:44px;line-height:1.05;text-transform:uppercase;font-weight:700;}
-  .bumper .sub{margin-top:12px;opacity:0.85;font-size:14px;font-weight:400;letter-spacing:0.06em;}
-  .schedule{position:absolute;left:var(--safe-margin);bottom:var(--safe-margin);z-index:45;font-size:13px;background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:6px;backdrop-filter:blur(2px);border:1px solid rgba(255,255,255,0.025);}
-  .controls{position:absolute;right:var(--safe-margin);bottom:var(--safe-margin);z-index:45;}
-  .fs{padding:6px 10px;border-radius:6px;background:#111;border:1px solid rgba(255,255,255,0.06);color:var(--fg);cursor:pointer;font-size:13px;}
-  .tv::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,0.01)1px,transparent 1px);background-size:100% 4px;mix-blend-mode:overlay;opacity:0.05;}
-  @media(max-width:720px){.bumper .line{font-size:28px;}.ui{font-size:12px;}}
+  html,body {margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;}
+  .tv {position:relative;width:100vw;height:100vh;display:flex;align-items:center;justify-content:center;background:#000;}
+  #player {position:absolute;inset:0;width:100%;height:100%;border:0;pointer-events:none;}
+  .overlay {position:absolute;inset:0;background:#000;display:flex;align-items:center;justify-content:center;z-index:20;opacity:0;transition:opacity var(--fade) ease;}
+  .overlay.show {opacity:1;}
+  .click-block {position:absolute;inset:0;z-index:30;pointer-events:auto;background:transparent;}
+  .ui {position:absolute;top:20px;left:20px;z-index:40;font-size:14px;opacity:0.85;display:flex;gap:10px;}
+  .logo {font-weight:700;font-size:18px;text-transform:uppercase;}
+  .schedule {position:absolute;left:20px;bottom:20px;z-index:40;font-size:13px;opacity:0.75;}
+  .fs-btn {position:absolute;right:20px;bottom:20px;z-index:40;background:#111;color:#fff;border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:6px 10px;cursor:pointer;}
+  .bumper-text {font-family:"Courier New",monospace;text-align:center;text-shadow:
+      -1px -1px 0 #000,
+      1px -1px 0 #000,
+      -1px 1px 0 #000,
+      1px 1px 0 #000;}
+  .bumper-text h1 {font-size:40px;margin:0;text-transform:uppercase;color:var(--fg);}
+  .bumper-text p {margin:8px 0 0 0;font-size:14px;opacity:0.9;color:var(--fg);}
+  .outlined {
+      text-shadow:
+        -1px -1px 0 #000,
+         1px -1px 0 #000,
+        -1px 1px 0 #000,
+         1px 1px 0 #000,
+        0 0 4px #000;
+  }
+  .tv::after {content:"";position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,0.03)1px,transparent 1px);background-size:100% 3px;mix-blend-mode:overlay;opacity:0.05;pointer-events:none;}
 </style>
 </head>
 <body>
-<div class="container">
-  <div class="tv" id="tv">
-    <div id="player"></div>
-    <div class="click-block" id="clickBlock"></div>
-    <div class="ui">
-      <div class="logo">MIDNIGHT</div>
-      <div class="meta" id="currentMeta">— loading —</div>
-    </div>
-    <div class="schedule" id="schedule">Next: —</div>
-    <div class="controls"><button id="fsBtn" class="fs">⛶</button></div>
-    <div class="bumper" id="bumper">
-      <div>
-        <div class="line" id="bumperLine">Bumper</div>
-        <div class="sub" id="bumperSub">An interstitial</div>
-      </div>
+<div class="tv" id="tv">
+  <div id="player"></div>
+  <div class="overlay" id="overlay">
+    <div class="bumper-text">
+      <h1 id="bumpLine">Please Stand By</h1>
+      <p id="bumpSub">Midnight Channel</p>
     </div>
   </div>
+  <div class="click-block" id="clickBlock"></div>
+  <div class="ui outlined">
+    <div class="logo outlined">MIDNIGHT</div>
+    <div id="nowText" class="outlined">Loading...</div>
+  </div>
+  <div class="schedule outlined" id="schedule">Next: —</div>
+  <button class="fs-btn outlined" id="fsBtn">⛶</button>
 </div>
 
 <script>
 const bumpers = [
-  {line:"this is television", sub:"midnight channel — a small transmission."},
-  {line:"intermission", sub:"we will return shortly."},
-  {line:"no signal", sub:"or maybe we never had one."},
-  {line:"thank you for tuning in", sub:"stay weird."}
+  {line:"PLEASE STAND BY", sub:"midnight channel will return soon"},
+  {line:"INTERMISSION", sub:"grab a drink — back in a moment"},
+  {line:"NO SIGNAL", sub:"transmission unstable"},
+  {line:"THANK YOU", sub:"for staying up this late"}
 ];
 
-let playlist=[],titles={},currentIndex=0,player=null,bumperTimeout=null;
+let playlist=[],titles={},current=0,player=null,bumperTimer=null;
 
-function loadVideos(){
-  return fetch("Videos.json")
-    .then(res=>{
-      if(!res.ok) throw new Error("Videos.json not found");
-      return res.json();
-    })
-    .then(data=>{
-      if(data.videos && Array.isArray(data.videos)){
-        playlist = data.videos.map(v=>v.id);
-        data.videos.forEach(v=>titles[v.id]=v.title||"Untitled Video");
-      }
-    });
+async function loadVideos() {
+  const res = await fetch("Videos.json");
+  const data = await res.json();
+  playlist = data.videos.map(v => v.id);
+  data.videos.forEach(v => titles[v.id] = v.title || "Untitled");
 }
 
-// Load YouTube API
 (function loadYT(){
-  const tag=document.createElement("script");
-  tag.src="https://www.youtube.com/iframe_api";
-  document.head.appendChild(tag);
+  const s=document.createElement("script");
+  s.src="https://www.youtube.com/iframe_api";
+  document.head.appendChild(s);
 })();
 
 function onYouTubeIframeAPIReady(){
   loadVideos().then(()=>{
-    if(playlist.length===0){
-      alert("No videos in Videos.json!");
-      return;
-    }
+    if(!playlist.length){alert("No videos found in Videos.json");return;}
     player = new YT.Player("player",{
-      height:"100%",width:"100%",videoId:playlist[currentIndex],
+      videoId:playlist[current],
       playerVars:{
-        autoplay:1,controls:0,modestbranding:1,rel:0,showinfo:0,iv_load_policy:3,playsinline:1,fs:0,disablekb:1
+        autoplay:1,controls:0,fs:0,rel:0,modestbranding:1,
+        iv_load_policy:3,disablekb:1,showinfo:0,playsinline:1,
+        origin:window.location.origin
       },
       events:{
-        onReady:onPlayerReady,
+        onReady:onReady,
         onStateChange:onStateChange,
-        onError:onPlayerError
+        onError:()=>showBumper(2000)
       }
     });
   });
 }
 
-function onPlayerReady(){
-  try{player.playVideo();player.unMute();}catch(e){}
-  updateMeta();
+function onReady(){
+  try{player.playVideo();player.unMute();player.setVolume(100);}catch(e){}
+  updateUI();
 }
 
 function onStateChange(e){
-  if(e.data===YT.PlayerState.ENDED) showBumperThenNext();
-  if(e.data===YT.PlayerState.PLAYING||e.data===YT.PlayerState.PAUSED) updateMeta();
+  if(e.data===YT.PlayerState.ENDED) showBumper();
+  if(e.data===YT.PlayerState.PLAYING) hideOverlay();
 }
 
-function onPlayerError(e){
-  console.warn("YouTube error",e.data);
-  showBumperThenNext(2000);
+function updateUI(){
+  const cur=playlist[current];
+  const next=playlist[(current+1)%playlist.length];
+  document.getElementById("nowText").textContent="Now: "+(titles[cur]||"Unknown");
+  document.getElementById("schedule").textContent="Next: "+(titles[next]||"Unknown");
+}
+
+function showBumper(delay=0){
+  clearTimeout(bumperTimer);
+  const b=bumpers[Math.floor(Math.random()*bumpers.length)];
+  document.getElementById("bumpLine").textContent=b.line;
+  document.getElementById("bumpSub").textContent=b.sub;
+  const overlay=document.getElementById("overlay");
+  overlay.classList.add("show");
+  bumperTimer=setTimeout(()=>{
+    nextVideo();
+  },delay+6000);
+}
+
+function hideOverlay(){
+  document.getElementById("overlay").classList.remove("show");
 }
 
 function nextVideo(){
-  currentIndex=(currentIndex+1)%playlist.length;
-  loadCurrentVideo();
+  current=(current+1)%playlist.length;
+  const id=playlist[current];
+  updateUI();
+  player.loadVideoById(id);
+  try{player.playVideo();player.unMute();player.setVolume(100);}catch(e){}
+  hideOverlay();
 }
 
-function loadCurrentVideo(){
-  const id=playlist[currentIndex];
-  updateMeta();
-  if(player&&player.loadVideoById){
-    player.loadVideoById({videoId:id,startSeconds:0});
-    try{player.playVideo();player.unMute();}catch(e){}
-  }
-}
-
-function showBumperThenNext(shortDelay){
-  shortDelay=shortDelay||0;
-  const b=bumpers[Math.floor(Math.random()*bumpers.length)];
-  const bumperEl=document.getElementById("bumper");
-  document.getElementById("bumperLine").textContent=b.line;
-  document.getElementById("bumperSub").textContent=b.sub;
-  bumperEl.classList.add("show");
-  try{player.pauseVideo();}catch(e){}
-  clearTimeout(bumperTimeout);
-  bumperTimeout=setTimeout(()=>{
-    bumperEl.classList.remove("show");
-    setTimeout(()=>nextVideo(),800);
-  },shortDelay+6000);
-}
-
-function updateMeta(){
-  const cur=playlist[currentIndex];
-  const title=titles[cur]||`Video ${currentIndex+1}`;
-  const next=playlist[(currentIndex+1)%playlist.length];
-  const nextTitle=titles[next]||`Video ${((currentIndex+1)%playlist.length)+1}`;
-  document.getElementById("currentMeta").textContent=`Now: ${title}`;
-  document.getElementById("schedule").textContent=`Next: ${nextTitle}`;
-}
-
-document.addEventListener("DOMContentLoaded",()=>{
-  const fsBtn=document.getElementById("fsBtn");
-  fsBtn.addEventListener("click",()=>{
-    const tv=document.getElementById("tv");
-    if(!document.fullscreenElement){tv.requestFullscreen?.();}
-    else{document.exitFullscreen?.();}
-  });
-  document.getElementById("tv").addEventListener("contextmenu",e=>e.preventDefault());
-});
+document.getElementById("fsBtn").onclick=()=>{
+  const tv=document.getElementById("tv");
+  if(!document.fullscreenElement) tv.requestFullscreen();
+  else document.exitFullscreen();
+};
+document.getElementById("clickBlock").oncontextmenu=e=>e.preventDefault();
 </script>
 </body>
 </html>
