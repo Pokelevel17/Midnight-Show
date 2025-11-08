@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Midnight Channel — Minimalist TV</title>
+<style>
+  :root{
+    --bg:#000;
+    --fg:#fff;
+    --bump-time:6000ms;
+    --bump-fade:800ms;
+    --safe-margin:24px;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+  }
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);overflow:hidden;}
+  .container{position:relative;height:100vh;width:100vw;display:flex;align-items:center;justify-content:center;}
+  .tv{width:100%;height:100%;background:#000;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  #player{position:absolute;inset:0;width:100%;height:100%;border:0;}
+  .click-block{position:absolute;inset:0;z-index:30;background:transparent;pointer-events:auto;}
+  .ui{position:absolute;z-index:40;left:var(--safe-margin);top:var(--safe-margin);font-size:14px;letter-spacing:0.04em;opacity:0.9;display:flex;gap:12px;align-items:center;user-select:none;}
+  .logo{font-weight:700;font-size:18px;text-transform:uppercase;}
+  .meta{opacity:0.85;font-weight:400;}
+  .unmute{margin-left:8px;padding:6px 10px;border-radius:6px;background:#111;color:var(--fg);border:1px solid rgba(255,255,255,0.08);cursor:pointer;font-size:13px;}
+  .unmute.hidden{display:none;}
+  .bumper{position:absolute;z-index:50;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);text-align:center;padding:30px;box-sizing:border-box;opacity:0;pointer-events:none;transition:opacity var(--bump-fade) ease;font-family:"Courier New",Courier,monospace;}
+  .bumper.show{opacity:1;pointer-events:auto;}
+  .bumper .line{font-size:44px;line-height:1.05;text-transform:uppercase;font-weight:700;}
+  .bumper .sub{margin-top:12px;opacity:0.85;font-size:14px;font-weight:400;letter-spacing:0.06em;}
+  .schedule{position:absolute;left:var(--safe-margin);bottom:var(--safe-margin);z-index:45;font-size:13px;background:rgba(255,255,255,0.03);padding:8px 10px;border-radius:6px;backdrop-filter:blur(2px);border:1px solid rgba(255,255,255,0.025);}
+  .controls{position:absolute;right:var(--safe-margin);bottom:var(--safe-margin);z-index:45;}
+  .fs{padding:6px 10px;border-radius:6px;background:#111;border:1px solid rgba(255,255,255,0.06);color:var(--fg);cursor:pointer;font-size:13px;}
+  .tv::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:linear-gradient(rgba(255,255,255,0.01)1px,transparent 1px);background-size:100% 4px;mix-blend-mode:overlay;opacity:0.05;}
+  @media(max-width:720px){.bumper .line{font-size:28px;}.ui{font-size:12px;}}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="tv" id="tv">
+    <div id="player"></div>
+    <div class="click-block" id="clickBlock"></div>
+    <div class="ui">
+      <div class="logo">MIDNIGHT</div>
+      <div class="meta" id="currentMeta">— loading —</div>
+      <button id="unmuteBtn" class="unmute">Unmute</button>
+    </div>
+    <div class="schedule" id="schedule">Next: —</div>
+    <div class="controls"><button id="fsBtn" class="fs">⛶</button></div>
+    <div class="bumper" id="bumper">
+      <div>
+        <div class="line" id="bumperLine">Bumper</div>
+        <div class="sub" id="bumperSub">An interstitial</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const bumpers = [
+  {line:"this is television", sub:"midnight channel — a small transmission."},
+  {line:"intermission", sub:"we will return shortly."},
+  {line:"no signal", sub:"or maybe we never had one."},
+  {line:"thank you for tuning in", sub:"stay weird."}
+];
+
+let playlist=[],titles={},currentIndex=0,player=null,isMuted=true,bumperTimeout=null;
+
+function loadVideos(){
+  return fetch("Videos.json")
+    .then(res=>{
+      if(!res.ok) throw new Error("Videos.json not found");
+      return res.json();
+    })
+    .then(data=>{
+      if(data.videos && Array.isArray(data.videos)){
+        playlist = data.videos.map(v=>v.id);
+        data.videos.forEach(v=>titles[v.id]=v.title||"Untitled Video");
+      }
+    });
+}
+
+/* Load YouTube API */
+(function loadYT(){
+  const tag=document.createElement("script");
+  tag.src="https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+})();
+
+function onYouTubeIframeAPIReady(){
+  loadVideos().then(()=>{
+    if(playlist.length===0){
+      alert("No videos in Videos.json!");
+      return;
+    }
+    player = new YT.Player("player",{
+      height:"100%",width:"100%",videoId:playlist[currentIndex],
+      playerVars:{
+        autoplay:1,controls:0,modestbranding:1,rel:0,showinfo:0,iv_load_policy:3,playsinline:1,fs:0,disablekb:1
+      },
+      events:{
+        onReady:onPlayerReady,
+        onStateChange:onStateChange,
+        onError:onPlayerError
+      }
+    });
+  });
+}
+
+function onPlayerReady(){
+  player.mute();
+  isMuted=true;
+  updateMeta();
+  try{player.playVideo();}catch(e){}
+}
+
+function onStateChange(e){
+  if(e.data===YT.PlayerState.ENDED) showBumperThenNext();
+  if(e.data===YT.PlayerState.PLAYING||e.data===YT.PlayerState.PAUSED) updateMeta();
+}
+
+function onPlayerError(e){
+  console.warn("YouTube error",e.data);
+  showBumperThenNext(2000);
+}
+
+function nextVideo(){
+  currentIndex=(currentIndex+1)%playlist.length;
+  loadCurrentVideo();
+}
+
+function loadCurrentVideo(){
+  const id=playlist[currentIndex];
+  updateMeta();
+  if(player&&player.loadVideoById){
+    player.loadVideoById({videoId:id,startSeconds:0});
+    if(isMuted) player.mute();
+    setTimeout(()=>{try{player.playVideo();}catch(e){}},250);
+  }
+}
+
+function showBumperThenNext(shortDelay){
+  shortDelay=shortDelay||0;
+  const b=bumpers[Math.floor(Math.random()*bumpers.length)];
+  const bumperEl=document.getElementById("bumper");
+  document.getElementById("bumperLine").textContent=b.line;
+  document.getElementById("bumperSub").textContent=b.sub;
+  bumperEl.classList.add("show");
+  try{player.pauseVideo();}catch(e){}
+  clearTimeout(bumperTimeout);
+  bumperTimeout=setTimeout(()=>{
+    bumperEl.classList.remove("show");
+    setTimeout(()=>nextVideo(),800);
+  },shortDelay+6000);
+}
+
+function updateMeta(){
+  const cur=playlist[currentIndex];
+  const title=titles[cur]||`Video ${currentIndex+1}`;
+  const next=playlist[(currentIndex+1)%playlist.length];
+  const nextTitle=titles[next]||`Video ${((currentIndex+1)%playlist.length)+1}`;
+  document.getElementById("currentMeta").textContent=`Now: ${title}`;
+  document.getElementById("schedule").textContent=`Next: ${nextTitle}`;
+}
+
+document.addEventListener("DOMContentLoaded",()=>{
+  const unmuteBtn=document.getElementById("unmuteBtn");
+  unmuteBtn.addEventListener("click",()=>{
+    try{
+      if(player){
+        if(isMuted){player.unMute();isMuted=false;unmuteBtn.textContent="Mute";}
+        else{player.mute();isMuted=true;unmuteBtn.textContent="Unmute";}
+      }
+    }catch(e){}
+  });
+
+  const fsBtn=document.getElementById("fsBtn");
+  fsBtn.addEventListener("click",()=>{
+    const tv=document.getElementById("tv");
+    if(!document.fullscreenElement){tv.requestFullscreen?.();}
+    else{document.exitFullscreen?.();}
+  });
+
+  document.getElementById("tv").addEventListener("contextmenu",e=>e.preventDefault());
+});
+</script>
+</body>
+</html>
