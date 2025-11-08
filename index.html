@@ -21,8 +21,6 @@
   .ui{position:absolute;z-index:40;left:var(--safe-margin);top:var(--safe-margin);font-size:14px;letter-spacing:0.04em;opacity:0.9;display:flex;gap:12px;align-items:center;user-select:none;}
   .logo{font-weight:700;font-size:18px;text-transform:uppercase;}
   .meta{opacity:0.85;font-weight:400;}
-  .unmute{margin-left:8px;padding:6px 10px;border-radius:6px;background:#111;color:var(--fg);border:1px solid rgba(255,255,255,0.08);cursor:pointer;font-size:13px;}
-  .unmute.hidden{display:none;}
   .bumper{position:absolute;z-index:50;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--fg);text-align:center;padding:30px;box-sizing:border-box;opacity:0;pointer-events:none;transition:opacity var(--bump-fade) ease;font-family:"Courier New",Courier,monospace;}
   .bumper.show{opacity:1;pointer-events:auto;}
   .bumper .line{font-size:44px;line-height:1.05;text-transform:uppercase;font-weight:700;}
@@ -42,7 +40,6 @@
     <div class="ui">
       <div class="logo">MIDNIGHT</div>
       <div class="meta" id="currentMeta">— loading —</div>
-      <button id="unmuteBtn" class="unmute">Unmute</button>
     </div>
     <div class="schedule" id="schedule">Next: —</div>
     <div class="controls"><button id="fsBtn" class="fs">⛶</button></div>
@@ -63,7 +60,7 @@ const bumpers = [
   {line:"thank you for tuning in", sub:"stay weird."}
 ];
 
-let playlist=[],titles={},currentIndex=0,player=null,isMuted=true,bumperTimeout=null;
+let playlist=[],titles={},currentIndex=0,player=null,bumperTimeout=null;
 
 function loadVideos(){
   return fetch("Videos.json")
@@ -79,7 +76,7 @@ function loadVideos(){
     });
 }
 
-/* Load YouTube API */
+// Load YouTube API
 (function loadYT(){
   const tag=document.createElement("script");
   tag.src="https://www.youtube.com/iframe_api";
@@ -107,10 +104,8 @@ function onYouTubeIframeAPIReady(){
 }
 
 function onPlayerReady(){
-  player.mute();
-  isMuted=true;
+  try{player.playVideo();player.unMute();}catch(e){}
   updateMeta();
-  try{player.playVideo();}catch(e){}
 }
 
 function onStateChange(e){
@@ -133,8 +128,7 @@ function loadCurrentVideo(){
   updateMeta();
   if(player&&player.loadVideoById){
     player.loadVideoById({videoId:id,startSeconds:0});
-    if(isMuted) player.mute();
-    setTimeout(()=>{try{player.playVideo();}catch(e){}},250);
+    try{player.playVideo();player.unMute();}catch(e){}
   }
 }
 
@@ -163,23 +157,12 @@ function updateMeta(){
 }
 
 document.addEventListener("DOMContentLoaded",()=>{
-  const unmuteBtn=document.getElementById("unmuteBtn");
-  unmuteBtn.addEventListener("click",()=>{
-    try{
-      if(player){
-        if(isMuted){player.unMute();isMuted=false;unmuteBtn.textContent="Mute";}
-        else{player.mute();isMuted=true;unmuteBtn.textContent="Unmute";}
-      }
-    }catch(e){}
-  });
-
   const fsBtn=document.getElementById("fsBtn");
   fsBtn.addEventListener("click",()=>{
     const tv=document.getElementById("tv");
     if(!document.fullscreenElement){tv.requestFullscreen?.();}
     else{document.exitFullscreen?.();}
   });
-
   document.getElementById("tv").addEventListener("contextmenu",e=>e.preventDefault());
 });
 </script>
