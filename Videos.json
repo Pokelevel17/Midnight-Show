@@ -1,48 +1,6 @@
 {
-  "videos": [
-    {
-      "id": "eL4HiaIfM6g",
-      "title": "The Boondocks"
-    },
-    {
-      "id": "WZ-qa71pG6E",
-      "title": "The Boondocks"
-    },
-    {
-      "id": "F90Qp14n33s",
-      "title": "The Boondocks"
-    },
-    {
-      "id": "9BTNTkZciF0",
-      "title": "The Boondocks"
-    },
-    {
-      "id": "CO3uNdVmd7g",
-      "title": "The Boondocks"
-    },
-    {
-      "id": "7ecYoSvGO60",
-      "title": "Rick and Morty X The Simpsons"
-    },
-    {
-      "id": "F4ifVvgZU58",
-      "title": "Moral Orel"
-    },
-    {
-      "id": "gmVW8FZzil0",
-      "title": "Moral Orel"
-    },
-    {
-      "id": "o2E2wLm_LlY",
-      "title": "Gravity Falls"
-    },
-    {
-      "id": "b-44BWPa_8k",
-      "title": "Gravity Falls"
-    },
-    {
-      "id": "k6S8EoLa5Wg",
-      "title": "Gravity Falls"
-    }
+  "videos":[
+    {"title":"Boondocks","url":"https://drive.google.com/drive/folders/1TP5tv5gGWPKlxdMc1gzffdKKS_eZuU11"},
+    {"title":"Video 2","url":"https://example.com/video2.mp4"}
   ]
 }
