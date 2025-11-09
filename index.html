@@ -10,9 +10,7 @@
   font-family:"Helvetica Neue",Arial,sans-serif;
 }
 html,body {margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;}
-#videoPlayer {
-  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
-}
+#player {position:absolute;inset:0;width:100%;height:100%;}
 .overlay {
   position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
   background:#000;opacity:0;transition:opacity var(--fade) ease;z-index:10;
@@ -32,7 +30,7 @@ html,body {margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hi
 </head>
 <body>
 
-<video id="videoPlayer" autoplay muted playsinline></video>
+<div id="player"></div>
 
 <div class="overlay" id="overlay">
   <div class="bumper-text outlined">
@@ -52,6 +50,7 @@ html,body {margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hi
 </div>
 
 <script>
+// Bumpers
 const bumpers=[
   {line:"PLEASE STAND BY",sub:"transmission will resume shortly"},
   {line:"INTERMISSION",sub:"take a break — we’ll be right back"},
@@ -59,24 +58,24 @@ const bumpers=[
   {line:"THANK YOU",sub:"for staying up this late"}
 ];
 
-let playlist=[],titles={},current=0,paused=false;
-const videoPlayer=document.getElementById("videoPlayer");
+let playlist=[],titles={},current=0,paused=false,player=null;
 
-// Convert Google Drive file ID to direct link
-function gdLink(id){
-  return `https://drive.google.com/uc?export=download&id=${id}`;
-}
+// Load YouTube API
+(function(){
+  const tag=document.createElement("script");
+  tag.src="https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+})();
 
 // Load videos.json
 async function loadVideos(){
   const res=await fetch("Videos.json");
   const data=await res.json();
-  playlist=shuffle(data.videos.map(v=>gdLink(v.id)));
-  data.videos.forEach(v=>titles[gdLink(v.id)]=v.title||"Untitled");
-  playVideo();
+  playlist=data.videos.map(v=>v.id);
+  data.videos.forEach(v=>titles[v.id]=v.title||"Untitled");
 }
 
-// Shuffle helper
+// Shuffle
 function shuffle(array){
   for(let i=array.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
@@ -85,19 +84,49 @@ function shuffle(array){
   return array;
 }
 
-// Play video
-function playVideo(){
-  if(!playlist.length) return;
-  const url=playlist[current];
-  videoPlayer.src=url;
-  videoPlayer.play().catch(e=>console.log(e));
-  document.getElementById("nowText").textContent="Now Playing: "+(titles[url]||"Unknown");
+// YouTube API Ready
+function onYouTubeIframeAPIReady(){
+  loadVideos().then(()=>{
+    if(!playlist.length){alert("No videos found");return;}
+    playlist=shuffle(playlist);
+    player=new YT.Player("player",{
+      videoId:playlist[current],
+      playerVars:{
+        autoplay:1,
+        controls:0,
+        rel:0,
+        modestbranding:1,
+        iv_load_policy:3,
+        disablekb:1,
+        fs:0,
+        showinfo:0,
+        playsinline:1,
+      },
+      events:{
+        onReady:onReady,
+        onStateChange:onStateChange,
+        onError:()=>showBumper(2000)
+      }
+    });
+  });
 }
 
-// When video ends, show bumper and next video
-videoPlayer.onended=function(){
-  showBumper();
-};
+function onReady(){
+  player.playVideo();
+  player.unMute();
+  player.setVolume(100);
+  updateUI();
+}
+
+function onStateChange(e){
+  if(e.data===YT.PlayerState.ENDED) showBumper();
+  if(e.data===YT.PlayerState.PLAYING) hideOverlay();
+}
+
+function updateUI(){
+  const cur=playlist[current];
+  document.getElementById("nowText").textContent="Now Playing: "+(titles[cur]||"Unknown");
+}
 
 function showBumper(delay=0){
   const b=bumpers[Math.floor(Math.random()*bumpers.length)];
@@ -107,22 +136,27 @@ function showBumper(delay=0){
   overlay.classList.add("show");
   setTimeout(()=>{
     current=(current+1)%playlist.length;
-    playVideo();
+    player.loadVideoById(playlist[current]);
+    updateUI();
     overlay.classList.remove("show");
   },delay+5000);
 }
 
-document.getElementById("pauseBtn").onclick=()=>{
-  if(paused){videoPlayer.play();paused=false;pauseBtn.textContent="❚❚";}
-  else{videoPlayer.pause();paused=true;pauseBtn.textContent="▶";}
+function hideOverlay(){
+  document.getElementById("overlay").classList.remove("show");
+}
+
+// Controls
+const pauseBtn=document.getElementById("pauseBtn");
+pauseBtn.onclick=()=>{
+  if(paused){player.playVideo();paused=false;pauseBtn.textContent="❚❚";}
+  else{player.pauseVideo();paused=true;pauseBtn.textContent="▶";}
 };
 
 document.getElementById("fsBtn").onclick=()=>{
   if(!document.fullscreenElement) document.body.requestFullscreen();
   else document.exitFullscreen();
 };
-
-loadVideos();
 </script>
 </body>
 </html>
