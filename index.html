@@ -22,14 +22,10 @@ html,body {margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hi
 .bumper-text{text-align:center;}
 .bumper-text h1{font-size:40px;margin:0;text-transform:uppercase;}
 .bumper-text p{margin:8px 0 0;font-size:14px;opacity:0.85;}
-.title {
-  position:absolute;top:16px;left:20px;z-index:20;
-}
+.title {position:absolute;top:16px;left:20px;z-index:20;}
 .title h1{font-size:28px;margin:0;text-transform:uppercase;letter-spacing:2px;}
 .now-playing{margin-top:4px;font-size:14px;opacity:0.85;}
-.controls {
-  position:absolute;right:20px;bottom:20px;z-index:20;display:flex;gap:10px;
-}
+.controls {position:absolute;right:20px;bottom:20px;z-index:20;display:flex;gap:10px;}
 .btn{background:transparent;color:#fff;border:1px solid #444;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px;transition:background 0.2s;}
 .btn:hover{background:rgba(255,255,255,0.1);}
 </style>
@@ -66,12 +62,17 @@ const bumpers=[
 let playlist=[],titles={},current=0,paused=false;
 const videoPlayer=document.getElementById("videoPlayer");
 
+// Convert Google Drive file ID to direct link
+function gdLink(id){
+  return `https://drive.google.com/uc?export=download&id=${id}`;
+}
+
 // Load videos.json
 async function loadVideos(){
   const res=await fetch("Videos.json");
   const data=await res.json();
-  playlist=shuffle(data.videos.map(v=>v.url));
-  data.videos.forEach(v=>titles[v.url]=v.title||"Untitled");
+  playlist=shuffle(data.videos.map(v=>gdLink(v.id)));
+  data.videos.forEach(v=>titles[gdLink(v.id)]=v.title||"Untitled");
   playVideo();
 }
 
