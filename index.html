@@ -6,99 +6,26 @@
 <title>Midnight Channel</title>
 <style>
   :root {
-    --bg: #000;
-    --fg: #fff;
-    --fade: 800ms;
-    font-family: "Helvetica Neue", Arial, sans-serif;
+    --bg:#000; --fg:#fff; --fade:800ms;
+    font-family:"Helvetica Neue",Arial,sans-serif;
   }
-  html, body {
-    margin: 0;
-    height: 100%;
-    background: var(--bg);
-    color: var(--fg);
-    overflow: hidden;
-  }
-  video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    background: #000;
-  }
-  .overlay {
-    position: absolute;
-    inset: 0;
-    background: #000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-    opacity: 0;
-    transition: opacity var(--fade) ease;
-  }
-  .overlay.show { opacity: 1; }
-  .bumper-text {
-    text-align: center;
-  }
-  .outlined {
-    text-shadow:
-      -1px -1px 0 #000,
-       1px -1px 0 #000,
-      -1px  1px 0 #000,
-       1px  1px 0 #000;
-  }
-  .bumper-text h1 {
-    font-size: 42px;
-    margin: 0;
-    text-transform: uppercase;
-  }
-  .bumper-text p {
-    margin: 8px 0 0;
-    font-size: 14px;
-    opacity: 0.85;
-  }
-  .ui {
-    position: absolute;
-    top: 16px;
-    left: 20px;
-    z-index: 20;
-    font-size: 16px;
-    opacity: 0.9;
-  }
-  .schedule {
-    position: absolute;
-    left: 20px;
-    bottom: 20px;
-    z-index: 20;
-    font-size: 13px;
-    opacity: 0.75;
-  }
-  .controls {
-    position: absolute;
-    right: 20px;
-    bottom: 20px;
-    z-index: 20;
-    display: flex;
-    gap: 10px;
-  }
-  .btn {
-    background: transparent;
-    color: #fff;
-    border: 1px solid #444;
-    border-radius: 6px;
-    padding: 6px 10px;
-    cursor: pointer;
-    font-size: 14px;
-    transition: background 0.2s;
-  }
-  .btn:hover {
-    background: rgba(255,255,255,0.1);
-  }
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;}
+  #player {position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+  .overlay {position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000;opacity:0;transition:opacity var(--fade) ease;z-index:10;}
+  .overlay.show{opacity:1;}
+  .outlined{text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
+  .bumper-text{text-align:center;}
+  .bumper-text h1{font-size:40px;margin:0;text-transform:uppercase;}
+  .bumper-text p{margin:8px 0 0;font-size:14px;opacity:0.85;}
+  .ui{position:absolute;top:16px;left:20px;z-index:20;font-size:16px;opacity:0.9;}
+  .schedule{position:absolute;left:20px;bottom:20px;z-index:20;font-size:13px;opacity:0.75;}
+  .controls{position:absolute;right:20px;bottom:20px;z-index:20;display:flex;gap:10px;}
+  .btn{background:transparent;color:#fff;border:1px solid #444;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px;transition:background 0.2s;}
+  .btn:hover{background:rgba(255,255,255,0.1);}
 </style>
 </head>
 <body>
-<video id="tvVideo" autoplay playsinline></video>
+<div id="player"></div>
 <div class="overlay" id="overlay">
   <div class="bumper-text outlined">
     <h1 id="bumpLine">PLEASE STAND BY</h1>
@@ -108,113 +35,111 @@
 
 <div class="ui outlined" id="nowText">Loading lineup...</div>
 <div class="schedule outlined" id="nextText"></div>
-
 <div class="controls">
   <button class="btn outlined" id="pauseBtn">❚❚</button>
   <button class="btn outlined" id="fsBtn">⛶</button>
 </div>
 
 <script>
-const bumpers = [
-  {line: "PLEASE STAND BY", sub: "transmission will resume shortly"},
-  {line: "INTERMISSION", sub: "take a break — we’ll be right back"},
-  {line: "NO SIGNAL", sub: "please stand by"},
-  {line: "THANK YOU", sub: "for staying up this late"}
+const bumpers=[
+  {line:"PLEASE STAND BY",sub:"transmission will resume shortly"},
+  {line:"INTERMISSION",sub:"take a break — we’ll be right back"},
+  {line:"NO SIGNAL",sub:"please stand by"},
+  {line:"THANK YOU",sub:"for staying up this late"}
 ];
 
-let playlist = [], titles = {}, current = 0, paused = false;
-const videoEl = document.getElementById("tvVideo");
-const overlay = document.getElementById("overlay");
-const bumpLine = document.getElementById("bumpLine");
-const bumpSub = document.getElementById("bumpSub");
-const nowText = document.getElementById("nowText");
-const nextText = document.getElementById("nextText");
-const pauseBtn = document.getElementById("pauseBtn");
+let playlist=[],titles={},current=0,paused=false,player=null;
 
-async function loadVideos() {
-  const res = await fetch("Videos.json");
-  const data = await res.json();
-  playlist = shuffle(data.videos.map(v => v.file));
-  data.videos.forEach(v => titles[v.file] = v.title || "Untitled");
-  startPlayback();
+// Load YouTube API
+(function(){
+  const tag=document.createElement("script");
+  tag.src="https://www.youtube.com/iframe_api";
+  document.head.appendChild(tag);
+})();
+
+// Load video data
+async function loadVideos(){
+  const res=await fetch("Videos.json");
+  const data=await res.json();
+  playlist=shuffle(data.videos.map(v=>v.id));
+  data.videos.forEach(v=>titles[v.id]=v.title||"Untitled");
 }
 
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
+// Shuffle helper
+function shuffle(array){
+  for(let i=array.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [array[i],array[j]]=[array[j],array[i]];
   }
   return array;
 }
 
-function startPlayback() {
-  playVideo(playlist[current]);
+function onYouTubeIframeAPIReady(){
+  loadVideos().then(()=>{
+    if(!playlist.length){alert("No videos found in Videos.json");return;}
+    player=new YT.Player("player",{
+      videoId:playlist[current],
+      playerVars:{
+        autoplay:1,controls:0,fs:0,rel:0,modestbranding:1,
+        iv_load_policy:3,disablekb:1,showinfo:0,playsinline:1,
+        origin:window.location.origin
+      },
+      events:{
+        onReady:onReady,
+        onStateChange:onStateChange,
+        onError:()=>showBumper(2000)
+      }
+    });
+  });
+}
+
+function onReady(){
+  try{player.playVideo();player.unMute();player.setVolume(100);}catch(e){}
   updateUI();
 }
 
-function playVideo(src) {
-  hideOverlay();
-  videoEl.src = src;
-  videoEl.volume = 1.0;
-  videoEl.play();
-  paused = false;
-  pauseBtn.textContent = "❚❚";
+function onStateChange(e){
+  if(e.data===YT.PlayerState.ENDED) showBumper();
+  if(e.data===YT.PlayerState.PLAYING) hideOverlay();
 }
 
-videoEl.addEventListener("ended", () => {
-  showBumper();
-});
-
-function nextVideo() {
-  current = (current + 1) % playlist.length;
-  updateUI();
-  playVideo(playlist[current]);
+function updateUI(){
+  const cur=playlist[current];
+  const next=playlist[(current+1)%playlist.length];
+  document.getElementById("nowText").textContent="Now: "+(titles[cur]||"Unknown");
+  document.getElementById("nextText").textContent="Next: "+(titles[next]||"Unknown");
 }
 
-function updateUI() {
-  const cur = playlist[current];
-  const next = playlist[(current + 1) % playlist.length];
-  nowText.textContent = "Now: " + (titles[cur] || "Unknown");
-  nextText.textContent = "Next: " + (titles[next] || "Unknown");
-}
-
-function showBumper() {
-  const b = bumpers[Math.floor(Math.random() * bumpers.length)];
-  bumpLine.textContent = b.line;
-  bumpSub.textContent = b.sub;
+function showBumper(delay=0){
+  const b=bumpers[Math.floor(Math.random()*bumpers.length)];
+  document.getElementById("bumpLine").textContent=b.line;
+  document.getElementById("bumpSub").textContent=b.sub;
+  const overlay=document.getElementById("overlay");
   overlay.classList.add("show");
-  setTimeout(() => {
+  setTimeout(()=>{
+    current=(current+1)%playlist.length;
+    updateUI();
+    player.loadVideoById(playlist[current]);
+    try{player.playVideo();player.unMute();player.setVolume(100);}catch(e){}
     overlay.classList.remove("show");
-    nextVideo();
-  }, 5000);
+  },delay+5000);
 }
 
-function hideOverlay() {
-  overlay.classList.remove("show");
+function hideOverlay(){
+  document.getElementById("overlay").classList.remove("show");
 }
 
-// Fullscreen toggle
-document.getElementById("fsBtn").onclick = () => {
-  if (!document.fullscreenElement) {
-    document.body.requestFullscreen();
-  } else {
-    document.exitFullscreen();
-  }
+// Controls
+document.getElementById("pauseBtn").onclick=()=>{
+  if(!player)return;
+  if(paused){player.playVideo();paused=false;pauseBtn.textContent="❚❚";}
+  else{player.pauseVideo();paused=true;pauseBtn.textContent="▶";}
 };
 
-// Pause/Play toggle
-pauseBtn.onclick = () => {
-  if (paused) {
-    videoEl.play();
-    pauseBtn.textContent = "❚❚";
-  } else {
-    videoEl.pause();
-    pauseBtn.textContent = "▶";
-  }
-  paused = !paused;
+document.getElementById("fsBtn").onclick=()=>{
+  if(!document.fullscreenElement)document.body.requestFullscreen();
+  else document.exitFullscreen();
 };
-
-loadVideos();
 </script>
 </body>
 </html>
