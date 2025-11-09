@@ -17,13 +17,12 @@
   .bumper-text{text-align:center;}
   .bumper-text h1{font-size:40px;margin:0;text-transform:uppercase;}
   .bumper-text p{margin:8px 0 0;font-size:14px;opacity:0.85;}
-  .ui{position:absolute;top:16px;left:20px;z-index:20;font-size:16px;opacity:0.9;}
   .schedule{position:absolute;left:20px;bottom:20px;z-index:20;font-size:13px;opacity:0.75;}
   .controls{position:absolute;right:20px;bottom:20px;z-index:20;display:flex;gap:10px;}
   .btn{background:transparent;color:#fff;border:1px solid #444;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px;transition:background 0.2s;}
   .btn:hover{background:rgba(255,255,255,0.1);}
 
-  /* Added logo block for MIDNIGHT SWIM */
+  /* Top-left logo */
   .logo {
     position: absolute;
     top: 16px;
@@ -54,14 +53,15 @@
   </div>
 </div>
 
-<!-- Added: top-left logo -->
+<!-- Top-left logo -->
 <div class="logo outlined">
   <h1>MIDNIGHT SWIM</h1>
   <p id="logoNow">Loading...</p>
 </div>
 
-<div class="ui outlined" id="nowText">Loading lineup...</div>
+<!-- Only keep next show info -->
 <div class="schedule outlined" id="nextText"></div>
+
 <div class="controls">
   <button class="btn outlined" id="pauseBtn">❚❚</button>
   <button class="btn outlined" id="fsBtn">⛶</button>
@@ -133,7 +133,6 @@ function onStateChange(e){
 function updateUI(){
   const cur=playlist[current];
   const next=playlist[(current+1)%playlist.length];
-  document.getElementById("nowText").textContent="Now: "+(titles[cur]||"Unknown");
   document.getElementById("nextText").textContent="Next: "+(titles[next]||"Unknown");
   document.getElementById("logoNow").textContent="Now Playing: "+(titles[cur]||"Unknown");
 }
