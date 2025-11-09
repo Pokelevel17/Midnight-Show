@@ -1,6 +1,7 @@
 {
   "videos":[
-    {"title":"Boondocks","url":"https://drive.google.com/drive/folders/1TP5tv5gGWPKlxdMc1gzffdKKS_eZuU11"},
+    {"title":"Boondocks","url":"https://drive.google.com/uc?export=download&id=1TP5tv5gGWPKlxdMc1gzffdKKS_eZuU11
+"},
     {"title":"Video 2","url":"https://example.com/video2.mp4"}
   ]
 }
