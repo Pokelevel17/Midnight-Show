@@ -18,13 +18,28 @@
     color:var(--fg);
     overflow:hidden;
   }
-  #player {
+  #player-container {
     position:absolute;
     inset:0;
     width:100%;
     height:100%;
+    overflow:hidden;
+  }
+  #player {
+    width:100%;
+    height:100%;
+    position:absolute;
+    inset:0;
+  }
+  /* transparent overlay hides all YT UI */
+  #uiMask {
+    position:absolute;
+    inset:0;
+    z-index:5;
+    background:transparent;
     pointer-events:none;
   }
+
   .overlay {
     position:absolute;
     inset:0;
@@ -99,7 +114,10 @@
 </style>
 </head>
 <body>
-  <div id="player"></div>
+  <div id="player-container">
+    <div id="player"></div>
+    <div id="uiMask"></div>
+  </div>
 
   <div class="overlay" id="overlay">
     <div class="bumper-text outlined">
@@ -172,8 +190,7 @@ function onYouTubeIframeAPIReady() {
         showinfo: 0,
         playsinline: 1,
         origin: window.location.origin,
-        enablejsapi: 1,
-        widget_referrer: window.location.href
+        enablejsapi: 1
       },
       events: {
         onReady: onReady,
@@ -191,22 +208,28 @@ function onReady() {
     player.setVolume(100);
   } catch (e) {}
   updateUI();
+  hideYTUI();
 }
 
 function onStateChange(e) {
   if (e.data === YT.PlayerState.ENDED) showBumper();
   if (e.data === YT.PlayerState.PLAYING) hideOverlay();
+  hideYTUI();
 }
 
-// Prevent showing any YouTube overlay when paused
-function clearYouTubeUI() {
+// forcibly hide any UI elements from YouTube iframe
+function hideYTUI() {
   const iframe = document.querySelector("#player iframe");
-  if (iframe) iframe.style.pointerEvents = "none";
+  if (iframe) {
+    iframe.style.pointerEvents = "none";
+    iframe.style.border = "none";
+  }
 }
 
 function updateUI() {
   const cur = playlist[current];
-  document.getElementById("nowText").textContent = "Now Playing: " + (titles[cur] || "Unknown");
+  document.getElementById("nowText").textContent =
+    "Now Playing: " + (titles[cur] || "Unknown");
 }
 
 function showBumper(delay = 0) {
@@ -225,12 +248,13 @@ function showBumper(delay = 0) {
       player.setVolume(100);
     } catch (e) {}
     overlay.classList.remove("show");
+    hideYTUI();
   }, delay + 5000);
 }
 
 function hideOverlay() {
   document.getElementById("overlay").classList.remove("show");
-  clearYouTubeUI();
+  hideYTUI();
 }
 
 // Controls
@@ -246,7 +270,7 @@ pauseBtn.onclick = () => {
     paused = true;
     pauseBtn.textContent = "▶";
   }
-  clearYouTubeUI();
+  hideYTUI();
 };
 
 document.getElementById("fsBtn").onclick = () => {
