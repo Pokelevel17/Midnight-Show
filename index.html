@@ -30,7 +30,7 @@
     inset:0;
     background:url('https://upload.wikimedia.org/wikipedia/commons/d/d1/Static.gif') center/cover no-repeat;
     opacity:0;
-    transition:opacity 1s ease;
+    transition:opacity 0.5s ease;
     z-index:10;
   }
   .show { opacity:1; }
@@ -52,6 +52,14 @@
     font-size:14px;
     opacity:0.85;
   }
+  .next-playing {
+    position:absolute;
+    bottom:20px;
+    left:20px;
+    font-size:13px;
+    opacity:0.75;
+    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+  }
 </style>
 </head>
 <body>
@@ -62,11 +70,14 @@
   <h1>MIDNIGHT SWIM</h1>
   <div class="now-playing" id="nowText">Loading lineup...</div>
 </div>
+<div class="next-playing" id="nextText"></div>
 
+<script src="https://www.youtube.com/iframe_api"></script>
 <script>
 let playlist = [];
 let titles = {};
 let current = 0;
+let player = null;
 
 async function loadVideos() {
   try {
@@ -74,44 +85,73 @@ async function loadVideos() {
     const data = await res.json();
     playlist = shuffle(data.videos.map(v => v.id));
     data.videos.forEach(v => titles[v.id] = v.title || "Untitled");
-    playNext();
-  } catch (e) {
+    onYouTubeIframeAPIReady();
+  } catch(e) {
     console.error("Error loading videos:", e);
   }
 }
 
 function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+  for(let i=a.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
 }
 
+function onYouTubeIframeAPIReady() {
+  playNext();
+}
+
 function playNext() {
-  const id = playlist[current];
-  document.getElementById("nowText").textContent = "Now Playing: " + (titles[id] || "Unknown");
+  const videoId = playlist[current];
+  const nextId = playlist[(current+1)%playlist.length];
+  document.getElementById("nowText").textContent = "Now Playing: " + (titles[videoId] || "Unknown");
+  document.getElementById("nextText").textContent = "Next: " + (titles[nextId] || "Unknown");
 
-  const container = document.getElementById("video-container");
-  container.innerHTML = "";
+  if(player) player.destroy();
 
-  const iframe = document.createElement("iframe");
-  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1`;
-  iframe.allow = "autoplay; fullscreen; encrypted-media";
-  container.appendChild(iframe);
+  player = new YT.Player('video-container', {
+    videoId: videoId,
+    playerVars: {
+      autoplay: 1,
+      controls: 0,
+      rel: 0,
+      modestbranding: 1,
+      iv_load_policy: 3,
+      playsinline: 1,
+      fs: 0,
+      vq: 'hd1080'
+    },
+    events: {
+      onReady: onPlayerReady,
+      onStateChange: onPlayerStateChange
+    }
+  });
+}
 
-  const staticScreen = document.getElementById("static");
-  staticScreen.classList.add("show");
-  setTimeout(() => staticScreen.classList.remove("show"), 2000);
+function onPlayerReady(event) {
+  event.target.playVideo();
+  showStaticForSeconds(5); // first 5s static
 
-  // 2-minute cycle
+  // Schedule last 5s static dynamically
+  const duration = player.getDuration();
   setTimeout(() => {
-    staticScreen.classList.add("show");
-    setTimeout(() => {
-      current = (current + 1) % playlist.length;
-      playNext();
-    }, 2000);
-  }, 120000);
+    showStaticForSeconds(5);
+  }, (duration - 5) * 1000);
+}
+
+function onPlayerStateChange(event) {
+  if(event.data === YT.PlayerState.ENDED) {
+    current = (current+1)%playlist.length;
+    playNext();
+  }
+}
+
+function showStaticForSeconds(seconds) {
+  const staticEl = document.getElementById("static");
+  staticEl.classList.add("show");
+  setTimeout(()=>staticEl.classList.remove("show"), seconds*1000);
 }
 
 loadVideos();
