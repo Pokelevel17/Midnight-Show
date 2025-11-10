@@ -5,57 +5,61 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Midnight Swim</title>
 <style>
-:root {
-  --bg:#000;
-  --fg:#fff;
-  font-family:"Helvetica Neue",Arial,sans-serif;
-}
-html,body {
-  margin:0;
-  height:100%;
-  background:var(--bg);
-  color:var(--fg);
-  overflow:hidden;
-}
-iframe {
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  border:0;
-  pointer-events:none;
-}
-.static {
-  position:absolute;
-  inset:0;
-  background:url('https://upload.wikimedia.org/wikipedia/commons/d/d1/Static.gif') center/cover no-repeat;
-  z-index:10;
-  opacity:0;
-  transition:opacity 1s ease;
-}
-.static.show {opacity:1;}
-.title {
-  position:absolute;
-  top:16px;
-  left:20px;
-  z-index:20;
-  text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
-}
-.title h1 {
-  font-size:28px;
-  margin:0;
-  text-transform:uppercase;
-  letter-spacing:2px;
-}
-.now-playing {
-  margin-top:4px;
-  font-size:14px;
-  opacity:0.85;
-}
+  html,body {
+    margin:0;
+    padding:0;
+    height:100%;
+    background:#000;
+    overflow:hidden;
+    font-family:"Helvetica Neue",Arial,sans-serif;
+    color:#fff;
+  }
+  #video-container {
+    position:fixed;
+    inset:0;
+    background:#000;
+    overflow:hidden;
+  }
+  iframe {
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    border:0;
+    pointer-events:none;
+  }
+  .static {
+    position:absolute;
+    inset:0;
+    background:url('https://upload.wikimedia.org/wikipedia/commons/d/d1/Static.gif') center/cover no-repeat;
+    opacity:0;
+    transition:opacity 1s ease;
+    z-index:10;
+  }
+  .show {
+    opacity:1 !important;
+  }
+  .title {
+    position:absolute;
+    top:16px;
+    left:20px;
+    z-index:20;
+    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+  }
+  .title h1 {
+    font-size:28px;
+    margin:0;
+    text-transform:uppercase;
+    letter-spacing:2px;
+  }
+  .now-playing {
+    margin-top:4px;
+    font-size:14px;
+    opacity:0.85;
+  }
 </style>
 </head>
 <body>
-
 <div id="video-container"></div>
 <div class="static" id="static"></div>
 
@@ -65,75 +69,56 @@ iframe {
 </div>
 
 <script>
-const API_KEY = "AIzaSyDKlyCnbT5KjP29FA7ANrJPCV-aDpU64LE"; // <--- Replace this
+let playlist = [];
+let titles = {};
+let current = 0;
 
-let playlist=[], titles={}, durations={}, current=0;
-
-// Load videos
 async function loadVideos() {
-  const res = await fetch("Videos.json");
-  const data = await res.json();
-  playlist = shuffle(data.videos.map(v => v.id));
-  data.videos.forEach(v => titles[v.id] = v.title || "Untitled");
-  await fetchDurations();
-  playNext();
-}
-
-// Get video durations using YouTube Data API
-async function fetchDurations() {
-  const ids = playlist.join(",");
-  const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${ids}&part=contentDetails&key=${API_KEY}`);
-  const data = await res.json();
-  data.items.forEach(v => {
-    durations[v.id] = parseISODuration(v.contentDetails.duration) * 1000;
-  });
-}
-
-// Convert ISO8601 duration (e.g., PT1M32S) → seconds
-function parseISODuration(dur) {
-  const match = dur.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-  const hours = parseInt(match[1] || 0);
-  const mins = parseInt(match[2] || 0);
-  const secs = parseInt(match[3] || 0);
-  return hours * 3600 + mins * 60 + secs;
-}
-
-// Shuffle array
-function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+  try {
+    const res = await fetch("Videos.json");
+    const data = await res.json();
+    playlist = shuffle(data.videos.map(v => v.id));
+    data.videos.forEach(v => titles[v.id] = v.title || "Untitled");
+    playNext();
+  } catch (err) {
+    console.error("Error loading videos:", err);
+    document.getElementById("nowText").textContent = "Failed to load lineup.";
   }
-  return a;
 }
 
-// Play next video
+// Shuffle playlist
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function playNext() {
   const id = playlist[current];
-  document.getElementById("nowText").textContent = "Now Playing: " + (titles[id] || "Unknown");
+  const now = document.getElementById("nowText");
+  now.textContent = "Now Playing: " + (titles[id] || "Unknown");
+
   const container = document.getElementById("video-container");
   const iframe = document.createElement("iframe");
-  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&showinfo=0&rel=0&modestbranding=1&playsinline=1`;
+  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&rel=0&modestbranding=1&fs=0&playsinline=1&mute=0&enablejsapi=1`;
   container.innerHTML = "";
   container.appendChild(iframe);
 
-  showStatic(4000);
+  // Static fade transition
+  const staticScreen = document.getElementById("static");
+  staticScreen.classList.add("show");
+  setTimeout(() => staticScreen.classList.remove("show"), 2000);
 
-  const duration = durations[id] || 120000; // fallback: 2 min
+  // Play next after ~2 mins (you can adjust here)
   setTimeout(() => {
-    showStatic(4000);
+    staticScreen.classList.add("show");
     setTimeout(() => {
       current = (current + 1) % playlist.length;
       playNext();
-    }, 4000);
-  }, duration - 5000);
-}
-
-// Show static transition
-function showStatic(duration) {
-  const s = document.getElementById("static");
-  s.classList.add("show");
-  setTimeout(() => s.classList.remove("show"), duration);
+    }, 2000);
+  }, 120000); // 2 minutes per video for now
 }
 
 loadVideos();
