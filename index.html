@@ -5,70 +5,21 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Midnight Swim</title>
 <style>
-html,body {
-  margin:0;
-  height:100%;
-  background:#000;
-  overflow:hidden;
-  font-family:"Helvetica Neue",Arial,sans-serif;
-  color:#fff;
-}
-#video-container {
-  position:fixed;
-  inset:0;
-  background:#000;
-  z-index:1;
-}
-video {
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  object-fit:cover;
-}
-.bumper {
-  position:absolute;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  background:#000;
-  color:#fff;
-  text-align:center;
-  opacity:1;
-  transition: opacity 0.5s ease;
-  z-index:2;
-  pointer-events:none;
-  text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
-}
-.bumper.hide { opacity:0; }
-.bumper h1 { font-size:40px; margin:0; text-transform:uppercase; }
-.bumper p { margin-top:8px; font-size:16px; opacity:0.85; }
-.title {
-  position:absolute;
-  top:16px;
-  left:20px;
-  z-index:3;
-  text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
-}
-.title h1 { font-size:28px; margin:0; text-transform:uppercase; letter-spacing:2px; }
-.now-playing { margin-top:4px; font-size:14px; opacity:0.85; }
-.next-playing {
-  position:absolute;
-  bottom:20px;
-  left:20px;
-  font-size:13px;
-  opacity:0.75;
-  text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
-  z-index:3;
-}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:"Helvetica Neue",Arial,sans-serif;color:#fff;}
+#video-container{position:fixed;inset:0;background:#000;z-index:1;}
+video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.bumper{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#000;color:#fff;text-align:center;opacity:1;transition:opacity 0.5s ease;z-index:2;pointer-events:none;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
+.bumper.hide{opacity:0;}
+.bumper h1{font-size:40px;margin:0;text-transform:uppercase;}
+.bumper p{margin-top:8px;font-size:16px;opacity:0.85;}
+.title{position:absolute;top:16px;left:20px;z-index:3;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
+.title h1{font-size:28px;margin:0;text-transform:uppercase;letter-spacing:2px;}
+.now-playing{margin-top:4px;font-size:14px;opacity:0.85;}
+.next-playing{position:absolute;bottom:20px;left:20px;font-size:13px;opacity:0.75;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;z-index:3;}
 </style>
 </head>
 <body>
-<div id="video-container">
-  <video id="video" autoplay muted></video>
-</div>
+<div id="video-container"><video id="video" autoplay playsinline></video></div>
 
 <div class="bumper" id="bumper">
   <h1 id="bumpLine">PLEASE STAND BY</h1>
@@ -81,7 +32,13 @@ video {
 </div>
 <div class="next-playing" id="nextText"></div>
 
+<!-- Include ffmpeg.wasm -->
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.8/dist/ffmpeg.min.js"></script>
+
 <script>
+const { createFFmpeg, fetchFile } = FFmpeg;
+const ffmpeg = createFFmpeg({ log: true });
+
 const bumpers = [
   {line:"PLEASE STAND BY", sub:"transmission will resume shortly"},
   {line:"INTERMISSION", sub:"take a break — we’ll be right back"},
@@ -91,20 +48,12 @@ const bumpers = [
 
 let playlist = [
   {url:"https://www.dropbox.com/scl/fi/eylya3xwe7mk2n0c29cxm/Rick-and-Morty-S01E01-Pilot.mkv?raw=1", title:"Rick and Morty S01E01"}
-  // Add more videos here
+  // Add more .mkv URLs here
 ];
 
 let current = 0;
 let videoEl = document.getElementById("video");
 let bumperEl = document.getElementById("bumper");
-
-function shuffle(a) {
-  for(let i=a.length-1;i>0;i--){
-    const j=Math.floor(Math.random()*(i+1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 
 function showBumper(seconds=5, callback) {
   const b = bumpers[Math.floor(Math.random()*bumpers.length)];
@@ -118,7 +67,17 @@ function showBumper(seconds=5, callback) {
   }, seconds*1000);
 }
 
-function playNext() {
+// Convert .mkv to .mp4 in-browser
+async function convertMKVtoMP4(url) {
+  if (!ffmpeg.isLoaded()) await ffmpeg.load();
+  const data = await fetchFile(url);
+  ffmpeg.FS('writeFile','input.mkv',data);
+  await ffmpeg.run('-i','input.mkv','-c:v','copy','-c:a','aac','output.mp4');
+  const output = ffmpeg.FS('readFile','output.mp4');
+  return URL.createObjectURL(new Blob([output.buffer], {type:'video/mp4'}));
+}
+
+async function playNext() {
   const curVideo = playlist[current];
   const nextVideo = playlist[(current+1)%playlist.length];
 
@@ -128,16 +87,21 @@ function playNext() {
   videoEl.pause();
   videoEl.src = "";
 
-  // First bumper
-  showBumper(5, () => {
-    videoEl.src = curVideo.url;
-    videoEl.currentTime = 0;
-    videoEl.muted = false;
-    videoEl.play().catch(() => console.warn("Autoplay failed"));
+  // Show first bumper
+  showBumper(5, async () => {
+    try {
+      const mp4URL = await convertMKVtoMP4(curVideo.url);
+      videoEl.src = mp4URL;
+      videoEl.currentTime = 0;
+      videoEl.muted = false;
+      await videoEl.play();
+    } catch(e) {
+      console.error("Video conversion/playback failed", e);
+    }
 
     // Last 5-second bumper
     videoEl.ontimeupdate = function() {
-      if(videoEl.duration && videoEl.duration - videoEl.currentTime <= 5){
+      if(videoEl.duration && videoEl.duration - videoEl.currentTime <=5){
         showBumper(5);
       }
     };
@@ -148,9 +112,6 @@ function playNext() {
     };
   });
 }
-
-// Optional: shuffle playlist
-// playlist = shuffle(playlist);
 
 playNext();
 </script>
