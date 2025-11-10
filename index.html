@@ -7,7 +7,6 @@
 <style>
   html,body {
     margin:0;
-    padding:0;
     height:100%;
     background:#000;
     overflow:hidden;
@@ -18,7 +17,6 @@
     position:fixed;
     inset:0;
     background:#000;
-    overflow:hidden;
   }
   iframe {
     position:absolute;
@@ -26,7 +24,6 @@
     width:100%;
     height:100%;
     border:0;
-    pointer-events:none;
   }
   .static {
     position:absolute;
@@ -36,9 +33,7 @@
     transition:opacity 1s ease;
     z-index:10;
   }
-  .show {
-    opacity:1 !important;
-  }
+  .show { opacity:1; }
   .title {
     position:absolute;
     top:16px;
@@ -80,45 +75,43 @@ async function loadVideos() {
     playlist = shuffle(data.videos.map(v => v.id));
     data.videos.forEach(v => titles[v.id] = v.title || "Untitled");
     playNext();
-  } catch (err) {
-    console.error("Error loading videos:", err);
-    document.getElementById("nowText").textContent = "Failed to load lineup.";
+  } catch (e) {
+    console.error("Error loading videos:", e);
   }
 }
 
-// Shuffle playlist
-function shuffle(arr) {
-  for (let i = arr.length - 1; i > 0; i--) {
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
+    [a[i], a[j]] = [a[j], a[i]];
   }
-  return arr;
+  return a;
 }
 
 function playNext() {
   const id = playlist[current];
-  const now = document.getElementById("nowText");
-  now.textContent = "Now Playing: " + (titles[id] || "Unknown");
+  document.getElementById("nowText").textContent = "Now Playing: " + (titles[id] || "Unknown");
 
   const container = document.getElementById("video-container");
-  const iframe = document.createElement("iframe");
-  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&rel=0&modestbranding=1&fs=0&playsinline=1&mute=0&enablejsapi=1`;
   container.innerHTML = "";
+
+  const iframe = document.createElement("iframe");
+  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1`;
+  iframe.allow = "autoplay; fullscreen; encrypted-media";
   container.appendChild(iframe);
 
-  // Static fade transition
   const staticScreen = document.getElementById("static");
   staticScreen.classList.add("show");
   setTimeout(() => staticScreen.classList.remove("show"), 2000);
 
-  // Play next after ~2 mins (you can adjust here)
+  // 2-minute cycle
   setTimeout(() => {
     staticScreen.classList.add("show");
     setTimeout(() => {
       current = (current + 1) % playlist.length;
       playNext();
     }, 2000);
-  }, 120000); // 2 minutes per video for now
+  }, 120000);
 }
 
 loadVideos();
