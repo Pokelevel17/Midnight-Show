@@ -3,45 +3,139 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Midnight Channel</title>
+<title>Adult Channel</title>
 <style>
 :root {
-  --bg:#000; --fg:#fff; --fade:800ms;
+  --bg:#000;
+  --fg:#fff;
   font-family:"Helvetica Neue",Arial,sans-serif;
 }
-html,body {margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hidden;}
-#player {position:absolute;inset:0;width:100%;height:100%;}
-.overlay {
-  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
-  background:#000;opacity:0;transition:opacity var(--fade) ease;z-index:10;
+html,body {
+  margin:0;
+  height:100%;
+  background:var(--bg);
+  color:var(--fg);
+  overflow:hidden;
+}
+#player {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none; /* makes sure UI can't be clicked */
+}
+.overlay, .static {
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#000;
+  opacity:0;
+  transition:opacity 1s ease;
+  z-index:10;
 }
 .overlay.show {opacity:1;}
-.outlined {text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;}
-.bumper-text{text-align:center;}
-.bumper-text h1{font-size:40px;margin:0;text-transform:uppercase;}
-.bumper-text p{margin:8px 0 0;font-size:14px;opacity:0.85;}
-.title {position:absolute;top:16px;left:20px;z-index:20;}
-.title h1{font-size:28px;margin:0;text-transform:uppercase;letter-spacing:2px;}
-.now-playing{margin-top:4px;font-size:14px;opacity:0.85;}
-.controls {position:absolute;right:20px;bottom:20px;z-index:20;display:flex;gap:10px;}
-.btn{background:transparent;color:#fff;border:1px solid #444;border-radius:6px;padding:6px 10px;cursor:pointer;font-size:14px;transition:background 0.2s;}
-.btn:hover{background:rgba(255,255,255,0.1);}
+.static {
+  background:url('https://upload.wikimedia.org/wikipedia/commons/d/d1/Static.gif') center/cover no-repeat;
+  z-index:15;
+  opacity:0;
+  transition:opacity 1s ease;
+}
+.static.show {opacity:1;}
+.outlined {
+  text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+}
+.bumper-text {
+  text-align:center;
+}
+.bumper-text h1 {
+  font-size:40px;
+  margin:0;
+  text-transform:uppercase;
+}
+.bumper-text p {
+  margin:8px 0 0;
+  font-size:14px;
+  opacity:0.85;
+}
+.title {
+  position:absolute;
+  top:16px;
+  left:20px;
+  z-index:20;
+}
+.title h1 {
+  font-size:28px;
+  margin:0;
+  text-transform:uppercase;
+  letter-spacing:2px;
+}
+.now-playing {
+  margin-top:4px;
+  font-size:14px;
+  opacity:0.85;
+}
+.logo {
+  position:absolute;
+  top:16px;
+  right:20px;
+  z-index:20;
+  text-align:right;
+}
+.logo h2 {
+  font-size:20px;
+  margin:0;
+  text-transform:uppercase;
+}
+.logo .now {
+  font-size:12px;
+  opacity:0.85;
+}
+.controls {
+  position:absolute;
+  right:20px;
+  bottom:20px;
+  z-index:20;
+  display:flex;
+  gap:10px;
+}
+.btn {
+  background:transparent;
+  color:#fff;
+  border:1px solid #444;
+  border-radius:6px;
+  padding:6px 10px;
+  cursor:pointer;
+  font-size:14px;
+  transition:background 0.2s;
+}
+.btn:hover {
+  background:rgba(255,255,255,0.1);
+}
 </style>
 </head>
 <body>
 
 <div id="player"></div>
 
+<div class="static" id="static"></div>
+
 <div class="overlay" id="overlay">
   <div class="bumper-text outlined">
     <h1 id="bumpLine">PLEASE STAND BY</h1>
-    <p id="bumpSub">MIDNIGHT CHANNEL</p>
+    <p id="bumpSub">ADULT CHANNEL</p>
   </div>
 </div>
 
 <div class="title outlined">
-  <h1>MIDNIGHT SWIM</h1>
+  <h1>ADULT CHANNEL</h1>
   <div class="now-playing" id="nowText">Loading lineup...</div>
+</div>
+
+<div class="logo outlined">
+  <h2>ADULT CHANNEL</h2>
+  <div class="now" id="nowTextRight">Loading...</div>
 </div>
 
 <div class="controls">
@@ -50,24 +144,20 @@ html,body {margin:0;height:100%;background:var(--bg);color:var(--fg);overflow:hi
 </div>
 
 <script>
-// Bumpers
 const bumpers=[
   {line:"PLEASE STAND BY",sub:"transmission will resume shortly"},
   {line:"INTERMISSION",sub:"take a break — we’ll be right back"},
   {line:"NO SIGNAL",sub:"please stand by"},
   {line:"THANK YOU",sub:"for staying up this late"}
 ];
-
 let playlist=[],titles={},current=0,paused=false,player=null;
 
-// Load YouTube API
 (function(){
   const tag=document.createElement("script");
   tag.src="https://www.youtube.com/iframe_api";
   document.head.appendChild(tag);
 })();
 
-// Load videos.json
 async function loadVideos(){
   const res=await fetch("Videos.json");
   const data=await res.json();
@@ -75,7 +165,6 @@ async function loadVideos(){
   data.videos.forEach(v=>titles[v.id]=v.title||"Untitled");
 }
 
-// Shuffle
 function shuffle(array){
   for(let i=array.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
@@ -84,7 +173,6 @@ function shuffle(array){
   return array;
 }
 
-// YouTube API Ready
 function onYouTubeIframeAPIReady(){
   loadVideos().then(()=>{
     if(!playlist.length){alert("No videos found");return;}
@@ -100,7 +188,7 @@ function onYouTubeIframeAPIReady(){
         disablekb:1,
         fs:0,
         showinfo:0,
-        playsinline:1,
+        playsinline:1
       },
       events:{
         onReady:onReady,
@@ -115,17 +203,19 @@ function onReady(){
   player.playVideo();
   player.unMute();
   player.setVolume(100);
+  showStatic(5000);
   updateUI();
 }
 
 function onStateChange(e){
-  if(e.data===YT.PlayerState.ENDED) showBumper();
+  if(e.data===YT.PlayerState.ENDED) showEndStatic();
   if(e.data===YT.PlayerState.PLAYING) hideOverlay();
 }
 
 function updateUI(){
   const cur=playlist[current];
   document.getElementById("nowText").textContent="Now Playing: "+(titles[cur]||"Unknown");
+  document.getElementById("nowTextRight").textContent=titles[cur]||"Unknown";
 }
 
 function showBumper(delay=0){
@@ -139,6 +229,7 @@ function showBumper(delay=0){
     player.loadVideoById(playlist[current]);
     updateUI();
     overlay.classList.remove("show");
+    showStatic(5000);
   },delay+5000);
 }
 
@@ -146,7 +237,17 @@ function hideOverlay(){
   document.getElementById("overlay").classList.remove("show");
 }
 
-// Controls
+function showStatic(duration){
+  const s=document.getElementById("static");
+  s.classList.add("show");
+  setTimeout(()=>s.classList.remove("show"),duration);
+}
+
+function showEndStatic(){
+  showStatic(5000);
+  setTimeout(()=>showBumper(1000),5000);
+}
+
 const pauseBtn=document.getElementById("pauseBtn");
 pauseBtn.onclick=()=>{
   if(paused){player.playVideo();paused=false;pauseBtn.textContent="❚❚";}
