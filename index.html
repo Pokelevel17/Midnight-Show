@@ -1,120 +1,118 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Midnight Swim</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Midnight Show</title>
 <style>
-  html,body {
-    margin:0;
-    height:100%;
-    background:#000;
-    overflow:hidden;
-    font-family:"Helvetica Neue",Arial,sans-serif;
-    color:#fff;
+  body {
+    margin: 0;
+    background-color: black;
+    color: white;
+    font-family: "Courier New", monospace;
+    overflow: hidden;
   }
-  #video-container {
-    position:fixed;
-    inset:0;
-    background:#000;
+
+  #player, #staticOverlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
   }
-  iframe {
-    position:absolute;
-    inset:0;
-    width:100%;
-    height:100%;
-    border:0;
+
+  #staticOverlay {
+    background: url('https://upload.wikimedia.org/wikipedia/commons/d/d7/Static.gif') center/cover;
+    opacity: 1;
+    transition: opacity 1s ease;
+    z-index: 10;
   }
-  .static {
-    position:absolute;
-    inset:0;
-    background:url('https://upload.wikimedia.org/wikipedia/commons/d/d1/Static.gif') center/cover no-repeat;
-    opacity:0;
-    transition:opacity 1s ease;
-    z-index:10;
+
+  .info {
+    position: fixed;
+    bottom: 30px;
+    left: 30px;
+    z-index: 11;
   }
-  .show { opacity:1; }
-  .title {
-    position:absolute;
-    top:16px;
-    left:20px;
-    z-index:20;
-    text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;
+
+  .logo {
+    font-size: 2em;
+    font-weight: bold;
+    border: 2px solid white;
+    padding: 10px;
+    display: inline-block;
   }
-  .title h1 {
-    font-size:28px;
-    margin:0;
-    text-transform:uppercase;
-    letter-spacing:2px;
-  }
-  .now-playing {
-    margin-top:4px;
-    font-size:14px;
-    opacity:0.85;
+
+  .nowPlaying {
+    margin-top: 10px;
+    font-size: 1em;
+    border: 1px solid white;
+    padding: 5px 10px;
+    display: inline-block;
   }
 </style>
 </head>
 <body>
-<div id="video-container"></div>
-<div class="static" id="static"></div>
 
-<div class="title">
-  <h1>MIDNIGHT SWIM</h1>
-  <div class="now-playing" id="nowText">Loading lineup...</div>
+<div id="player"></div>
+<div id="staticOverlay"></div>
+
+<div class="info">
+  <div class="logo">ADULT CHANNEL</div>
+  <div class="nowPlaying" id="nowPlaying">Loading...</div>
 </div>
 
 <script>
-let playlist = [];
-let titles = {};
-let current = 0;
-
 async function loadVideos() {
-  try {
-    const res = await fetch("Videos.json");
-    const data = await res.json();
-    playlist = shuffle(data.videos.map(v => v.id));
-    data.videos.forEach(v => titles[v.id] = v.title || "Untitled");
-    playNext();
-  } catch (e) {
-    console.error("Error loading videos:", e);
-  }
+  const res = await fetch('Videos.json');
+  const videos = await res.json();
+  return videos;
 }
 
-function shuffle(a) {
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
+function getRandomVideo(videos) {
+  return videos[Math.floor(Math.random() * videos.length)];
 }
 
-function playNext() {
-  const id = playlist[current];
-  document.getElementById("nowText").textContent = "Now Playing: " + (titles[id] || "Unknown");
+let player;
+let currentVideo = null;
+let staticOverlay = document.getElementById("staticOverlay");
+let nowPlaying = document.getElementById("nowPlaying");
 
-  const container = document.getElementById("video-container");
-  container.innerHTML = "";
+function showStatic(fadeIn = true) {
+  staticOverlay.style.opacity = fadeIn ? "1" : "0";
+}
 
-  const iframe = document.createElement("iframe");
-  iframe.src = `https://www.youtube.com/embed/${id}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1`;
-  iframe.allow = "autoplay; fullscreen; encrypted-media";
-  container.appendChild(iframe);
+function playRandomVideo(videos) {
+  const video = getRandomVideo(videos);
+  currentVideo = video;
+  nowPlaying.textContent = "Now Playing: " + video.title;
 
-  const staticScreen = document.getElementById("static");
-  staticScreen.classList.add("show");
-  setTimeout(() => staticScreen.classList.remove("show"), 2000);
+  // Load new YouTube embed
+  document.getElementById('player').innerHTML = `
+    <iframe 
+      id="ytplayer"
+      src="https://www.youtube.com/embed/${video.id}?autoplay=1&controls=0&modestbranding=1&rel=0&fs=0&showinfo=0&iv_load_policy=3&mute=0"
+      frameborder="0"
+      allow="autoplay; encrypted-media"
+      allowfullscreen="false"
+      style="width:100%;height:100%;border:0;">
+    </iframe>
+  `;
 
-  // 2-minute cycle
+  // Fade static in and out
+  showStatic(true);
+  setTimeout(() => showStatic(false), 1000);
+
+  // Next video after 5 minutes (or whatever length)
   setTimeout(() => {
-    staticScreen.classList.add("show");
-    setTimeout(() => {
-      current = (current + 1) % playlist.length;
-      playNext();
-    }, 2000);
-  }, 120000);
+    showStatic(true);
+    setTimeout(() => playRandomVideo(videos), 1000);
+  }, 5 * 60 * 1000);
 }
 
-loadVideos();
+(async () => {
+  const videos = await loadVideos();
+  playRandomVideo(videos);
+})();
 </script>
 </body>
 </html>
