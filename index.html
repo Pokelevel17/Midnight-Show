@@ -32,6 +32,7 @@
     opacity:0;
     transition:opacity 0.5s ease;
     z-index:10;
+    pointer-events:none;
   }
   .show { opacity:1; }
   .title {
@@ -78,6 +79,7 @@ let playlist = [];
 let titles = {};
 let current = 0;
 let player = null;
+let staticEl = document.getElementById("static");
 
 async function loadVideos() {
   try {
@@ -130,28 +132,33 @@ function playNext() {
   });
 }
 
+// Show static for first and last 5 seconds dynamically
 function onPlayerReady(event) {
-  event.target.playVideo();
-  showStaticForSeconds(5); // first 5s static
+  player.playVideo();
+  staticEl.classList.add("show"); // first 5 seconds
+  setTimeout(() => staticEl.classList.remove("show"), 5000);
 
-  // Schedule last 5s static dynamically
-  const duration = player.getDuration();
-  setTimeout(() => {
-    showStaticForSeconds(5);
-  }, (duration - 5) * 1000);
+  // Start checking current time for last 5 seconds
+  const checkInterval = setInterval(() => {
+    const duration = player.getDuration();
+    const currentTime = player.getCurrentTime();
+    if(duration - currentTime <= 5) {
+      staticEl.classList.add("show");
+    } else {
+      staticEl.classList.remove("show");
+    }
+  }, 200);
+
+  // Save interval to clear later
+  player.checkInterval = checkInterval;
 }
 
 function onPlayerStateChange(event) {
   if(event.data === YT.PlayerState.ENDED) {
+    if(player.checkInterval) clearInterval(player.checkInterval);
     current = (current+1)%playlist.length;
     playNext();
   }
-}
-
-function showStaticForSeconds(seconds) {
-  const staticEl = document.getElementById("static");
-  staticEl.classList.add("show");
-  setTimeout(()=>staticEl.classList.remove("show"), seconds*1000);
 }
 
 loadVideos();
